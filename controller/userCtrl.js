@@ -1,4 +1,5 @@
 const User = require("../models/userModel");
+const Product = require("../models/productModel");
 const asyncHandler = require("express-async-handler");
 const { generateToken } = require("../config/jwtToken");
 const validateMongoDbId = require("../utils/validateMongodbId");
@@ -6,25 +7,22 @@ const { generateRefreshToken } = require("../config/refreshToken");
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
 const sendEmail = require("../controller/emailCtrl");
+const mongoose = require("mongoose");
 const dotenv = require("dotenv").config();
-
 
 const createUser = asyncHandler(async (req, res) => {
   const email = req.body.email;
   const findUser = await User.findOne({ email: email });
   if (!findUser) {
-    //Create new User
     const newUser = await User.create(req.body);
     res.json(newUser);
   } else {
-    //User Already Exists
     throw new Error("User Already Exists");
   }
 });
 
 const loginUserCtrl = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
-
   const findUser = await User.findOne({ email });
   if (findUser && (await findUser.isPasswordMatched(password))) {
     const refreshToken = await generateRefreshToken(findUser?._id);
@@ -52,14 +50,13 @@ const loginUserCtrl = asyncHandler(async (req, res) => {
   }
 });
 
-//handle refresh token
 const handleRefreshToken = asyncHandler(async (req, res) => {
   const cookie = req.cookies;
   if (!cookie?.refreshToken) throw new Error("No Refresh Token in Cookies");
   const refreshToken = cookie.refreshToken;
   console.log(refreshToken);
   const user = await User.findOne({ refreshToken });
-  if (!user) throw new Error(" No Refresh token present in db or not matched");
+  if (!user) throw new Error("No Refresh token present in db or not matched");
   jwt.verify(refreshToken, process.env.JWT_SECRET, (err, decoded) => {
     if (err || user.id !== decoded.id) {
       throw new Error("There is something wrong with refresh token");
@@ -68,8 +65,6 @@ const handleRefreshToken = asyncHandler(async (req, res) => {
     res.json({ accessToken });
   });
 });
-
-//LOGOUT
 
 const logout = asyncHandler(async (req, res) => {
   const cookie = req.cookies;
@@ -236,12 +231,43 @@ const resetPassword = asyncHandler(async (req, res) => {
     passwordResetToken: hashedToken,
     passwordResetExpires: { $gt: Date.now() },
   });
-  if (!user) throw new Error(" Token Expired, Please try again later");
+  if (!user) throw new Error("Token Expired, Please try again later");
   user.password = password;
   user.passwordResetToken = undefined;
   user.passwordResetExpires = undefined;
   await user.save();
   res.json(user);
+});
+
+const addToWishlist = asyncHandler(async (req, res) => {
+  const { _id } = req.user;
+  const { prodId } = req.body;
+  if (!mongoose.Types.ObjectId.isValid(prodId)) {
+    return res
+      .status(400)
+      .json({ status: "fail", message: "Invalid product ID format" });
+  }
+
+  try {
+    const user = await User.findById(_id);
+    if (!user) {
+      return res
+        .status(404)
+        .json({ status: "fail", message: "User not found" });
+    }
+
+    const alreadyAdded = user.wishlist.find((id) => id.toString() === prodId);
+    if (alreadyAdded) {
+      user.wishlist = user.wishlist.filter((id) => id.toString() !== prodId);
+    } else {
+      user.wishlist.push(prodId);
+    }
+
+    await user.save();
+    res.json(user);
+  } catch (error) {
+    res.status(500).json({ status: "fail", message: error.message });
+  }
 });
 
 module.exports = {
@@ -258,4 +284,5 @@ module.exports = {
   updatePassword,
   forgotPasswordToken,
   resetPassword,
+  addToWishlist,
 };

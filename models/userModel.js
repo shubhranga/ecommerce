@@ -3,7 +3,6 @@ const bcrypt = require("bcrypt");
 const crypto = require("crypto");
 const dotenv = require("dotenv").config();
 
-
 // Declare the Schema of the Mongo model
 var userSchema = new mongoose.Schema(
   {

@@ -13,6 +13,7 @@ const {
   updatePassword,
   forgotPasswordToken,
   resetPassword,
+  addToWishlist,
 } = require("../controller/userCtrl");
 const { authMiddleware, isAdmin } = require("../middlewares/authMiddleware");
 const router = express.Router();
@@ -30,5 +31,6 @@ router.put("/edit-user", authMiddleware, updatedUser);
 router.get(":/id", authMiddleware, isAdmin, getaUser);
 router.put("/block-user/:id", authMiddleware, isAdmin, blockUser);
 router.put("/unblock-user/:id", authMiddleware, isAdmin, unblockUser);
+router.post("/wishlist", authMiddleware, addToWishlist);
 
 module.exports = router;
