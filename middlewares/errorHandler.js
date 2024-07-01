@@ -14,6 +14,7 @@ const notFound = (req, res, next) => {
     res.json({
       status: "fail",
       message: err?.message,
+      stack: err?.stack,
     });
   };
   

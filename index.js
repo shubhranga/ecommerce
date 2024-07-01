@@ -10,7 +10,10 @@ const morgan = require("morgan");
 const { errorHandler, notFound } = require("./middlewares/errorHandler");
 const categoryRouter = require("./routes/prodcategoryRoute");
 const blogcategoryRouter = require("./routes/blogCatRoute");
+const couponRouter = require("./routes/couponRoute");
 const brandRouter = require("./routes/brandRoute");
+const multer = require("multer");
+
 const app = express();
 const PORT = process.env.PORT || 4000;
 dbConnect();
@@ -26,6 +29,7 @@ app.use("/api/blog", blogRouter);
 app.use("/api/category", categoryRouter);
 app.use("/api/blogcategory", blogcategoryRouter);
 app.use("/api/brand", brandRouter);
+app.use("/api/coupon", couponRouter);
 
 app.use(notFound);
 app.use(errorHandler);

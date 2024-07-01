@@ -4,6 +4,9 @@ const asyncHandler = require("express-async-handler");
 const slugify = require("slugify");
 const validateMongoDbId = require("../utils/validateMongodbId");
 const mongoose = require("mongoose");
+const fs = require("fs");
+const dotenv = require("dotenv").config();
+const cloudinaryUploadImg = require("../utils/cloudinary");
 
 // Create Product
 const createProduct = asyncHandler(async (req, res) => {
@@ -11,9 +14,17 @@ const createProduct = asyncHandler(async (req, res) => {
     if (req.body.title) {
       req.body.slug = slugify(req.body.title);
     }
+    if (req.body.images && !Array.isArray(req.body.images)) {
+      req.body.images = JSON.parse(req.body.images);
+    }
     const newProduct = await Product.create(req.body);
-    res.json(newProduct);
+    res.status(201).json(newProduct);
   } catch (error) {
+    console.error("Create Product Error:", error);
+    if (error.name === "ValidationError") {
+      const messages = Object.values(error.errors).map((val) => val.message);
+      return res.status(400).json({ status: "fail", message: messages });
+    }
     res.status(500).json({ status: "fail", message: error.message });
   }
 });
@@ -120,25 +131,32 @@ const getAllProduct = asyncHandler(async (req, res) => {
   }
 });
 
+// Rating Product
 const rating = asyncHandler(async (req, res) => {
   const { _id } = req.user;
-  const { star, prodId } = req.body;
+  const { star, prodId, comment } = req.body;
 
   // Validate prodId
   if (!mongoose.Types.ObjectId.isValid(prodId)) {
-    return res.status(400).json({ status: "fail", message: "Invalid product ID format" });
+    return res
+      .status(400)
+      .json({ status: "fail", message: "Invalid product ID format" });
   }
 
   // Validate star
   if (star == null || star < 1 || star > 5) {
-    return res.status(400).json({ status: "fail", message: "Invalid star rating" });
+    return res
+      .status(400)
+      .json({ status: "fail", message: "Invalid star rating" });
   }
 
   try {
     const product = await Product.findById(prodId);
 
     if (!product) {
-      return res.status(404).json({ status: "fail", message: "Product not found" });
+      return res
+        .status(404)
+        .json({ status: "fail", message: "Product not found" });
     }
 
     // Check if the user has already rated the product
@@ -150,11 +168,13 @@ const rating = asyncHandler(async (req, res) => {
       // Update existing rating
       const updateRating = await Product.updateOne(
         { _id: prodId, "ratings.postedby": _id },
-        { $set: { "ratings.$.star": star } }
+        { $set: { "ratings.$.star": star, "ratings.$.comment": comment } }
       );
 
       if (updateRating.nModified === 0) {
-        return res.status(400).json({ status: "fail", message: "Failed to update rating" });
+        return res
+          .status(400)
+          .json({ status: "fail", message: "Failed to update rating" });
       }
     } else {
       // Add new rating
@@ -164,6 +184,7 @@ const rating = asyncHandler(async (req, res) => {
           $push: {
             ratings: {
               star: star,
+              comment: comment,
               postedby: _id,
             },
           },
@@ -172,7 +193,9 @@ const rating = asyncHandler(async (req, res) => {
       );
 
       if (!rateProduct) {
-        return res.status(400).json({ status: "fail", message: "Failed to add rating" });
+        return res
+          .status(400)
+          .json({ status: "fail", message: "Failed to add rating" });
       }
     }
 
@@ -181,7 +204,10 @@ const rating = asyncHandler(async (req, res) => {
 
     // Calculate total rating
     const totalRating = updatedProduct.ratings.length;
-    const ratingSum = updatedProduct.ratings.reduce((sum, rating) => sum + rating.star, 0);
+    const ratingSum = updatedProduct.ratings.reduce(
+      (sum, rating) => sum + rating.star,
+      0
+    );
     const actualRating = Math.round(ratingSum / totalRating);
 
     // Update the product's totalrating field
@@ -199,6 +225,39 @@ const rating = asyncHandler(async (req, res) => {
   }
 });
 
+const uploadImages = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  validateMongoDbId(id);
+  console.log(req.files);
+  try {
+    const uploader = (path) => cloudinaryUploadImg(path, "images");
+    const urls = [];
+    const files = req.files;
+
+    for (const file of files) {
+      const { path } = file; 
+      const newpath = await uploader(path);
+      console.log(newpath);
+      urls.push(newpath);
+      fs.unlinkSync(path);
+    }
+
+    const findProduct = await Product.findByIdAndUpdate(
+      id,
+      {
+        images: urls,
+      },
+      {
+        new: true,
+      }
+    );
+
+    res.json(findProduct);
+  } catch (error) {
+    console.error("Upload Images Error:", error);
+    res.status(500).json({ status: "fail", message: error.message });
+  }
+});
 
 module.exports = {
   createProduct,
@@ -207,4 +266,5 @@ module.exports = {
   updateProduct,
   deleteProduct,
   rating,
+  uploadImages,
 };
