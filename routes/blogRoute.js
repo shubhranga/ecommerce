@@ -11,6 +11,7 @@ const {
 } = require("../controller/blogCtrl");
 const { authMiddleware, isAdmin } = require("../middlewares/authMiddleware");
 const { blogImgResize, uploadPhoto } = require("../middlewares/uploadImages");
+const multer = require('multer');
 const router = express.Router();
 
 router.put("/likes", authMiddleware, liketheBlog);

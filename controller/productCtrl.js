@@ -6,7 +6,7 @@ const validateMongoDbId = require("../utils/validateMongodbId");
 const mongoose = require("mongoose");
 const fs = require("fs");
 const dotenv = require("dotenv").config();
-const cloudinaryUploadImg = require("../utils/cloudinary");
+const {cloudinaryUploadImg, cloudinaryDeleteImg} = require("../utils/cloudinary");
 
 // Create Product
 const createProduct = asyncHandler(async (req, res) => {
@@ -226,9 +226,6 @@ const rating = asyncHandler(async (req, res) => {
 });
 
 const uploadImages = asyncHandler(async (req, res) => {
-  const { id } = req.params;
-  validateMongoDbId(id);
-  console.log(req.files);
   try {
     const uploader = (path) => cloudinaryUploadImg(path, "images");
     const urls = [];
@@ -241,21 +238,23 @@ const uploadImages = asyncHandler(async (req, res) => {
       urls.push(newpath);
       fs.unlinkSync(path);
     }
-
-    const findProduct = await Product.findByIdAndUpdate(
-      id,
-      {
-        images: urls,
-      },
-      {
-        new: true,
-      }
-    );
-
-    res.json(findProduct);
+    const images = urls.map((file) => {
+      return file;
+    });
+    res.json(images);
   } catch (error) {
     console.error("Upload Images Error:", error);
     res.status(500).json({ status: "fail", message: error.message });
+  }
+});
+
+const deleteImages = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  try {
+    const deleted = cloudinaryDeleteImg(id, "images");
+    res.json({ message: "Deleted" });
+  } catch (error) {
+    throw new Error(error);
   }
 });
 
@@ -267,4 +266,5 @@ module.exports = {
   deleteProduct,
   rating,
   uploadImages,
+  deleteImages,
 };

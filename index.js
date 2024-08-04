@@ -11,7 +11,9 @@ const { errorHandler, notFound } = require("./middlewares/errorHandler");
 const categoryRouter = require("./routes/prodcategoryRoute");
 const blogcategoryRouter = require("./routes/blogCatRoute");
 const couponRouter = require("./routes/couponRoute");
+const colorRouter = require("./routes/colorRoute");
 const brandRouter = require("./routes/brandRoute");
+const enqRouter = require("./routes/enqRoute");
 const multer = require("multer");
 
 const app = express();
@@ -30,6 +32,8 @@ app.use("/api/category", categoryRouter);
 app.use("/api/blogcategory", blogcategoryRouter);
 app.use("/api/brand", brandRouter);
 app.use("/api/coupon", couponRouter);
+app.use("/api/enquiry", enqRouter);
+app.use("/api/color", colorRouter);
 
 app.use(notFound);
 app.use(errorHandler);
